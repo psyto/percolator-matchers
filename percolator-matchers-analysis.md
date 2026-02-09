@@ -2,17 +2,18 @@
 
 ## Overview
 
-Four novel custom matching programs for [Percolator](https://github.com/nicholasgasior/percolator), Anatoly Yakovenko's open-source formally verified risk engine for Solana perpetual futures. Each matcher plugs into Percolator via CPI to determine trade pricing with unique domain-specific logic. A shared library (`matcher-common`) provides common infrastructure.
+Five novel custom matching programs for [Percolator](https://github.com/nicholasgasior/percolator), Anatoly Yakovenko's open-source formally verified risk engine for Solana perpetual futures. Each matcher plugs into Percolator via CPI to determine trade pricing with unique domain-specific logic. A shared library (`matcher-common`) provides common infrastructure.
 
-**Repositories:**
+**Monorepo:** [psyto/percolator-matchers](https://github.com/psyto/percolator-matchers)
 
-| Repo | GitHub | Description |
-|------|--------|-------------|
-| `matcher-common` | [psyto/matcher-common](https://github.com/psyto/matcher-common) | Shared utilities for all matchers |
-| `privacy-matcher` | [psyto/privacy-matcher](https://github.com/psyto/privacy-matcher) | Encrypted trade intents via solver |
-| `vol-matcher` | [psyto/vol-matcher](https://github.com/psyto/vol-matcher) | Volatility perps via Sigma oracle |
-| `jpy-matcher` | [psyto/jpy-matcher](https://github.com/psyto/jpy-matcher) | KYC-enforced JPY regulated perps |
-| `event-matcher` | [psyto/event-matcher](https://github.com/psyto/event-matcher) | Event probability perps |
+| Program | Description |
+|---------|-------------|
+| `matcher-common` | Shared utilities for all matchers |
+| `privacy-matcher` | Encrypted trade intents via solver |
+| `vol-matcher` | Volatility perps via Sigma oracle |
+| `jpy-matcher` | KYC-enforced JPY regulated perps |
+| `event-matcher` | Event probability perps |
+| `macro-matcher` | Real rate perps with macroeconomic regime-aware pricing |
 
 **Tech Stack:** Rust 2021, Solana SDK 2.1, Anchor (devnet), Shank IDL 0.4, TypeScript (solvers/keepers/CLI)
 
@@ -87,6 +88,7 @@ Each matcher has a unique 8-byte magic identifier to prevent cross-matcher CPI a
 | vol-matcher | `0x564F_4c4d_4154_4348` | `VOLMATCH` |
 | jpy-matcher | `0x4A50_594D_4154_4348` | `JPYMATCH` |
 | event-matcher | `0x4556_4e54_4d41_5443` | `EVNTMATC` |
+| macro-matcher | `0x4d41_434f_4d41_5443` | `MACOMATC` |
 
 ---
 
@@ -875,7 +877,51 @@ await percolatorCli.initMarket({
 
 ---
 
+## 6. macro-matcher
+
+### Concept
+
+A matching program for perpetual contracts on **real interest rates** (nominal rate minus inflation). Uses FRED macroeconomic data (SOFR, breakeven inflation) to compute mark price and detect macroeconomic regimes. Spreads widen during crisis periods and tighten during expansion.
+
+### Macroeconomic Regime System
+
+| Regime | Value | Spread Multiplier | Effect |
+|--------|-------|-------------------|--------|
+| Expansion | 0 | 0.60x | Tight spreads in growth periods |
+| Stagnation | 1 | 1.00x | Baseline |
+| Crisis | 2 | 2.00x | Wide spreads during panic |
+| Recovery | 3 | 1.25x | Moderate widening in transition |
+
+### Pricing Model
+
+```
+adjusted_regime = regime_spread * regime_multiplier / 100
+total_spread = min(base_spread + adjusted_regime + signal_adj, max_spread)
+exec_price = mark_price * (10000 + total_spread) / 10000
+```
+
+Mark price: `mark_price_e6 = max(0, (real_rate_bps + 500) * 10_000)` (offset to keep positive).
+
+### Signal Adjustment
+
+Like event-matcher, macro-matcher supports `signal_adj` for additional spread during unusual conditions (e.g., sudden FRED data revisions, yield curve inversions).
+
+### Tests (20 Rust + 18 TypeScript)
+
+Rust tests cover regime pricing across all 4 regimes, spread capping, signal adjustment, mark price construction (positive/zero/negative/floor), regime constants, `from_u8` validation, and edge cases.
+
+TypeScript tests mirror the same pricing logic for parity verification.
+
+### Cross-Pollination
+
+- **FRED API**: Federal Reserve Economic Data for nominal rates and inflation
+- **Percolator** Hyperp mode: Admin-controlled oracle for real rate mark price
+
+---
+
 ## Test Summary
+
+### Rust Tests (66 total)
 
 | Crate | Tests | Categories |
 |-------|-------|------------|
@@ -884,15 +930,41 @@ await percolatorCli.initMarket({
 | vol-matcher | 6 | Regime pricing (3) + Spread (1) + Enum (2) |
 | jpy-matcher | 7 | Pricing (4) + Jurisdiction (2) + Constants (1) |
 | event-matcher | 9 | Edge spread (5) + Signal (1) + Capping (1) + Constants (2) |
-| **Total** | **46** | **All passing** |
+| macro-matcher | 20 | Regime pricing (4) + Spread (3) + Signal (2) + Mark price (5) + Constants (2) + Edge cases (3) + State (1) |
+| **Total** | **66** | **All passing** |
 
-All tests are pure arithmetic with no Solana runtime dependencies, runnable via `cargo test --lib`.
+### TypeScript Tests (54 total)
+
+| Suite | Tests | Categories |
+|-------|-------|------------|
+| Vol Matcher | 8 | Regime pricing (4) + Spread capping (1) + Edge cases (3) |
+| Macro Matcher | 18 | Regime pricing (4) + Spread (3) + Signal (2) + Mark price (5) + Constants (2) + Edge cases (2) |
+| Event Matcher | 14 | Edge spread (4) + Signal (3) + Resolution (4) + Edge cases (3) |
+| Privacy Matcher | 5 | Pricing (4) + Encryption roundtrip (1) |
+| JPY Matcher | 9 | Compliance (5) + Pricing (3) + Volume (1) |
+| **Total** | **54** | **All passing** |
+
+All tests are pure arithmetic with no Solana runtime dependencies.
+
+### LP Protection Backtest
+
+In addition to unit tests, an LP protection backtest (`npm run backtest`) simulates 200 trades per matcher under changing market conditions. It compares each matcher's adaptive spread against a naive fixed spread, demonstrating LP protection during stress periods.
+
+The backtest uses pricing functions copied verbatim from `tests/*.test.ts` to ensure parity with the on-chain Rust implementations. Output is deterministic (seeded PRNG, seed=42).
+
+| Matcher | Scenario | Adaptive P&L | Fixed P&L | Advantage |
+|---------|----------|-------------|----------|-----------|
+| Vol | VeryLow -> Extreme -> Recovery | +3,102 bps | +2,982 bps | +120 bps |
+| Macro | Expansion -> Crisis -> Recovery | +4,505 bps | +2,665 bps | +1,840 bps |
+| Event | 52% -> near-resolution ~2% | +18,945 bps | +9,513 bps | +9,432 bps |
+| Privacy | Low MEV -> spike -> Low MEV | +2,025 bps | +1,025 bps | +1,000 bps |
+| JPY | Normal -> BOJ intervention -> Normal | +530 bps | +350 bps | +180 bps |
 
 ---
 
 ## Shank IDL Annotations
 
-All four matchers include `#[derive(ShankInstruction)]` annotations for TypeScript SDK generation:
+All five matchers include `#[derive(ShankInstruction)]` annotations for TypeScript SDK generation:
 
 | Matcher | Enum | Instructions |
 |---------|------|-------------|
@@ -900,6 +972,7 @@ All four matchers include `#[derive(ShankInstruction)]` annotations for TypeScri
 | vol-matcher | `VolMatcherInstruction` | Match, Init, OracleSync |
 | jpy-matcher | `JpyMatcherInstruction` | Match, Init, OracleUpdate |
 | event-matcher | `EventMatcherInstruction` | Match, Init, ProbabilitySync, Resolve |
+| macro-matcher | `MacroMatcherInstruction` | Match, Init, IndexSync |
 
 Generate IDL with:
 ```bash
@@ -956,28 +1029,28 @@ shank idl -o target/idl -p <program-path>
 
 ## Security Checklist
 
-| Check | privacy | vol | jpy | event |
-|-------|---------|-----|-----|-------|
-| LP PDA `is_signer` | Yes | Yes | Yes | Yes |
-| LP PDA matches stored | Yes | Yes | Yes | Yes |
-| Magic verification | Yes | Yes | Yes | Yes |
-| Init re-initialization prevention | Yes | Yes | Yes | Yes |
-| Spread capped at `max_spread_bps` | Yes | Yes | Yes | Yes |
-| Checked/saturating arithmetic | Yes | Yes | Yes | Yes |
-| Oracle staleness check | N/A (solver) | Yes (100 slots) | N/A | Yes (200 slots) |
-| Zero price rejection | Yes | Yes | Yes | Yes (prob=0) |
-| Context size validation | Yes | Yes | Yes | Yes |
-| Cross-matcher magic isolation | Yes | Yes | Yes | Yes |
+| Check | privacy | vol | jpy | event | macro |
+|-------|---------|-----|-----|-------|-------|
+| LP PDA `is_signer` | Yes | Yes | Yes | Yes | Yes |
+| LP PDA matches stored | Yes | Yes | Yes | Yes | Yes |
+| Magic verification | Yes | Yes | Yes | Yes | Yes |
+| Init re-initialization prevention | Yes | Yes | Yes | Yes | Yes |
+| Spread capped at `max_spread_bps` | Yes | Yes | Yes | Yes | Yes |
+| Checked/saturating arithmetic | Yes | Yes | Yes | Yes | Yes |
+| Oracle staleness check | N/A (solver) | Yes (100 slots) | N/A | Yes (200 slots) | N/A (keeper) |
+| Zero price rejection | Yes | Yes | Yes | Yes (prob=0) | Yes |
+| Context size validation | Yes | Yes | Yes | Yes | Yes |
+| Cross-matcher magic isolation | Yes | Yes | Yes | Yes | Yes |
 
 ---
 
 ## Potential Future Work
 
 1. **TypeScript SDK Generation** — Run `shank-cli` to generate IDL, then use `@metaplex-foundation/solita` or `@coral-xyz/anchor` codegen
-2. **Devnet Deployment** — Deploy all 4 programs + create Percolator markets
-3. **Solver/Keeper Services** — Implement TypeScript services for oracle sync, trade execution
-4. **Oracle Integration** — Connect Sigma (vol), Meridian (KYC), Pyth (JPY), Polymarket/Kalshi (events)
-5. **Integration Tests** — Full CPI cycle tests with Percolator on localnet
-6. **Solver Competition** — Multiple solvers bidding for privacy-matcher trade flow
-7. **On-chain Intent Queue** — Move privacy-matcher intents from off-chain to on-chain for censorship resistance
-8. **Vol Surface Visualization** — Analytics dashboard for vol regime tracking
+2. **Devnet Deployment** — Deploy all 5 programs + create Percolator markets
+3. **Oracle Integration** — Connect Sigma (vol), Meridian (KYC), Pyth (JPY), Polymarket/Kalshi (events), FRED (macro)
+4. **Integration Tests** — Full CPI cycle tests with Percolator on localnet
+5. **Solver Competition** — Multiple solvers bidding for privacy-matcher trade flow
+6. **On-chain Intent Queue** — Move privacy-matcher intents from off-chain to on-chain for censorship resistance
+7. **Vol Surface Visualization** — Analytics dashboard for vol regime tracking
+8. **Backtest Expansion** — Extend `npm run backtest` with historical data replay, multi-seed Monte Carlo, and HTML report generation

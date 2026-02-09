@@ -162,6 +162,66 @@ Traders take leveraged positions on a **continuous probability** (0-100%). The m
 
 ---
 
+## 5. macro-matcher — Real Rate Perps via FRED Macroeconomic Data
+
+### How It Works
+
+Traders take leveraged positions on **real interest rates** (nominal rate minus inflation). The mark price is derived from FRED's SOFR and 5-Year Breakeven Inflation data. Spreads adapt to macroeconomic regimes.
+
+**The flow:**
+
+1. **Keeper fetches FRED data** every 60 seconds — SOFR (nominal rate) and 5-Year Breakeven Inflation. Computes: `real_rate_bps = nominal_bps - inflation_bps`.
+
+2. **Keeper detects macroeconomic regime** (Expansion, Stagnation, Crisis, Recovery) and computes mark price: `mark = max(0, (real_rate_bps + 500) * 10_000)`. The +500 offset keeps mark positive for moderately negative real rates.
+
+3. **Keeper calls tag `0x03` (IndexSync)** to update the matcher context with regime, real rate, and mark price.
+
+4. **When a trade executes**, tag `0x00`:
+   - Verifies LP PDA signer + match
+   - Computes regime-adaptive spread:
+     ```
+     adjusted_regime = regime_spread * regime_multiplier / 100
+     total_spread = min(base_spread + adjusted_regime + signal_adj, max_spread)
+     ```
+   - Regime multipliers: Expansion=60 (0.6x), Stagnation=100 (1.0x), Crisis=200 (2.0x), Recovery=125 (1.25x)
+   - `exec_price = mark * (10000 + total_spread) / 10000`
+
+**Mark Price Examples:**
+| Real Rate | Nominal | Inflation | Mark Price | Trade Direction |
+|-----------|---------|-----------|------------|----------------|
+| +2% | 5% | 3% | 7,000,000 | LONG profits |
+| 0% | 3% | 3% | 5,000,000 | Neutral |
+| -1% | 2% | 3% | 4,000,000 | SHORT profits |
+| -5% | 0% | 5% | 0 (floor) | Maximum SHORT payout |
+
+### Next Steps
+
+- **FRED API integration**: The keeper needs a valid `FRED_API_KEY` for production data. Rate limit is 120 req/min.
+- **Regime detection heuristics**: Currently regime is set manually by the keeper. Automating regime detection from yield curve shape, GDP data, and employment figures would make it fully autonomous.
+- **Signal adjustment calibration**: The `signal_adj` parameter is available but needs calibration against historical macro data surprises (NFP, CPI prints, Fed meetings).
+
+---
+
+## LP Protection Backtest
+
+All five matchers now have an LP protection backtest (`npm run backtest`) that simulates 200 trades per matcher under synthetic but realistic market conditions. The backtest compares each matcher's adaptive spread against a naive fixed spread, demonstrating that regime-aware pricing protects LPs during high-risk periods.
+
+**Key results:**
+
+| Matcher | Scenario | Adaptive P&L | Fixed P&L | Advantage |
+|---------|----------|-------------|----------|-----------|
+| Vol | VeryLow -> Extreme -> Recovery | +3,102 bps | +2,982 bps | +120 bps |
+| Macro | Expansion -> Crisis -> Recovery | +4,505 bps | +2,665 bps | +1,840 bps |
+| Event | 52% -> near-resolution ~2% | +18,945 bps | +9,513 bps | +9,432 bps |
+| Privacy | Low MEV -> spike -> Low MEV | +2,025 bps | +1,025 bps | +1,000 bps |
+| JPY | Normal -> BOJ intervention -> Normal | +530 bps | +350 bps | +180 bps |
+
+The event-matcher shows the largest advantage because probability markets near resolution create extreme adverse selection that only adaptive pricing (via the edge factor) can handle. The macro-matcher shows strong protection during the simulated 2008-style crisis, where the 2.0x regime multiplier widens spreads to match elevated true risk.
+
+The backtest uses a seeded PRNG (Mulberry32, seed=42) for deterministic output and pricing functions copied verbatim from `tests/*.test.ts`.
+
+---
+
 ## Cross-Cutting Next Steps
 
 1. **Integration tests with a local validator**: None of the projects have `solana-test-validator` based integration tests. The mocha tests are pure TypeScript unit tests that simulate pricing math but don't actually deploy programs or send transactions.
@@ -170,6 +230,10 @@ Traders take leveraged positions on a **continuous probability** (0-100%). The m
 
 3. **Devnet deployment scripts**: The `setup-*.ts` scripts are guides, not executable scripts. Making them fully executable would be the fastest path to end-to-end validation.
 
-4. **Shared crate for LP PDA verification**: All 4 matchers duplicate the same LP PDA signer + stored value check. Extracting to a shared crate would reduce maintenance.
+4. **Shared crate for LP PDA verification**: All 5 matchers use the same LP PDA signer + stored value check via `matcher-common`.
+
+5. **Anchor IDL generation**: The programs use raw `solana-program` without Anchor, so there's no IDL. For client ergonomics, generating an IDL (or using Codama/Shank) would help.
+
+6. **Backtest expansion**: Extend `npm run backtest` with historical data replay, multi-seed Monte Carlo simulation, and HTML report generation.
 
 5. **Anchor IDL generation**: The programs use raw `solana-program` without Anchor, so there's no IDL. For client ergonomics, generating an IDL (or using Codama/Shank) would help.
