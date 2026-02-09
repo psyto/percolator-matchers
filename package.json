@@ -22,7 +22,8 @@
     "macro:init-lp": "ts-node cli/macro/src/index.ts init-lp",
     "macro:trade": "ts-node cli/macro/src/index.ts trade",
     "macro:status": "ts-node cli/macro/src/index.ts status",
-    "setup:devnet": "ts-node scripts/setup-devnet.ts"
+    "setup:devnet": "ts-node scripts/setup-devnet.ts",
+    "backtest": "ts-node scripts/backtest.ts"
   },
   "dependencies": {
     "@solana/web3.js": "^1.95.0",
