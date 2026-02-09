@@ -1,0 +1,19 @@
+[package]
+name = "privacy-matcher"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[features]
+no-entrypoint = []
+custom-heap = []
+custom-panic = []
+
+[dependencies]
+solana-program = "2.1"
+bytemuck = { version = "1.14", features = ["derive"] }
+blake3 = "=1.5.5"
+matcher-common = { path = "../../packages/matcher-common" }
+shank = "0.4"

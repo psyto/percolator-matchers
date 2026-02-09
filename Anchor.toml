@@ -1,0 +1,20 @@
+[features]
+seeds = false
+skip-lint = false
+
+[programs.devnet]
+privacy_matcher = "Priv1111111111111111111111111111111111111111"
+vol_matcher = "VoLm1111111111111111111111111111111111111111"
+jpy_matcher = "JPYm1111111111111111111111111111111111111111"
+event_matcher = "Evnt1111111111111111111111111111111111111111"
+macro_matcher = "MAcR1111111111111111111111111111111111111111"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "devnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "npx ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.test.ts"
