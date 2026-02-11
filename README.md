@@ -12,7 +12,7 @@ Custom matching programs for the [Percolator](https://github.com/nicholasgasior/
 | [event-matcher](docs/event-matcher.md) | Event probability perps with edge spread and [Kalshify](https://github.com/nicholasgasior/kalshify)-style signal detection | Edge factor up to 10x near 0%/100% | `EVNTMATC` |
 | [macro-matcher](programs/macro-matcher/) | Real rate perps with macroeconomic regime-aware pricing (Expansion/Stagnation/Crisis/Recovery) | Regime multipliers 0.6x--2.0x | `MACOMATC` |
 
-All programs share a 320-byte context account layout and use [matcher-common](packages/matcher-common/) for CPI contract utilities.
+All programs share a 320-byte context account layout and use [matcher-common](https://github.com/psyto/matcher-sdk) (extracted to the `matcher-sdk` sibling repo) for CPI contract utilities.
 
 ## Repository Structure
 

@@ -15,5 +15,5 @@ custom-panic = []
 solana-program = "2.1"
 bytemuck = { version = "1.14", features = ["derive"] }
 blake3 = "=1.5.5"
-matcher-common = { path = "../../packages/matcher-common" }
+matcher-common = { path = "../../../matcher-sdk" }
 shank = "0.4"

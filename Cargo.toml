@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "packages/matcher-common",
     "programs/privacy-matcher",
     "programs/vol-matcher",
     "programs/jpy-matcher",
