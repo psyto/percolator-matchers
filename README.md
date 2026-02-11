@@ -18,7 +18,6 @@ All programs share a 320-byte context account layout and use [matcher-common](ht
 
 ```
 percolator-matchers/
-├── packages/matcher-common/     # Shared Rust library (CPI helpers, pricing, PDA verification)
 ├── programs/
 │   ├── privacy-matcher/         # On-chain program
 │   ├── vol-matcher/
@@ -42,13 +41,23 @@ percolator-matchers/
 └── docs/                        # Per-matcher documentation
 ```
 
+## Prerequisites
+
+This project depends on [`matcher-sdk`](https://github.com/psyto/matcher-sdk), which must be cloned as a sibling directory:
+
+```bash
+# Clone both repos side by side
+git clone https://github.com/psyto/matcher-sdk.git
+git clone https://github.com/psyto/percolator-matchers.git
+```
+
 ## Build & Test
 
 ```bash
 # Install TypeScript dependencies
 npm install
 
-# Rust tests (66 tests across 6 crates)
+# Rust tests (51 tests across 5 program crates + 15 in matcher-sdk)
 cargo test --workspace
 
 # Build SBF programs
