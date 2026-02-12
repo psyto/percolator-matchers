@@ -8,6 +8,7 @@ import {
 } from "@solana/web3.js";
 import { FredDataSource } from "./data-sources";
 import { MacroSignalDetector } from "./macro-signal-detector";
+import { withRetry } from "../../shared/retry";
 
 /**
  * Rate offset: +500 bps (+5.00%) to keep mark price positive.
@@ -116,7 +117,10 @@ export class MacroOracleSync {
     });
 
     const tx = new Transaction().add(ix);
-    const sig = await sendAndConfirmTransaction(this.connection, tx, [this.payer]);
+    const sig = await withRetry(
+      () => sendAndConfirmTransaction(this.connection, tx, [this.payer]),
+      { onRetry: (err, attempt, delay) => console.log(`[MACRO-SYNC] retry ${attempt} in ${delay}ms: ${err}`) },
+    );
     console.log(`IndexSync tx: ${sig}`);
   }
 }

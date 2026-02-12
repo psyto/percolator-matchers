@@ -1,6 +1,7 @@
 import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, Transaction, TransactionInstruction, SystemProgram } from "@solana/web3.js";
 import { SolverConfig, EncryptedIntent, DecryptedIntent } from "./config";
 import { decrypt, deserializeIntent } from "./encryption";
+import { withRetry } from "../../shared/retry";
 import * as fs from "fs";
 
 export class PrivacyPerpsSolver {
@@ -154,7 +155,10 @@ export class PrivacyPerpsSolver {
     });
 
     const tx = new Transaction().add(ix);
-    const sig = await sendAndConfirmTransaction(this.connection, tx, [this.solverKeypair]);
+    const sig = await withRetry(
+      () => sendAndConfirmTransaction(this.connection, tx, [this.solverKeypair]),
+      { onRetry: (err, attempt, delay) => console.log(`[SOLVER] retry ${attempt} in ${delay}ms: ${err}`) },
+    );
     console.log(`Oracle updated: price=${price}, tx=${sig}`);
   }
 

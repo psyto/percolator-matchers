@@ -6,6 +6,7 @@ import {
   TransactionInstruction,
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
+import { withRetry } from "../../shared/retry";
 
 /**
  * Sigma VarianceTracker data layout (key offsets for reading)
@@ -95,7 +96,10 @@ export class VolOracleSync {
     });
 
     const tx = new Transaction().add(ix);
-    const sig = await sendAndConfirmTransaction(this.connection, tx, [this.payer]);
+    const sig = await withRetry(
+      () => sendAndConfirmTransaction(this.connection, tx, [this.payer]),
+      { onRetry: (err, attempt, delay) => console.log(`[VOL-SYNC] retry ${attempt} in ${delay}ms: ${err}`) },
+    );
     console.log(`Oracle synced: vol=${currentVolBps}bps regime=${regime} tx=${sig}`);
   }
 }

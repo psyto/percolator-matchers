@@ -5,6 +5,7 @@ import {
 import { KalshiAdapter } from "./kalshi-adapter";
 import { PolymarketAdapter } from "./polymarket-adapter";
 import { SignalDetector, SignalSeverity } from "./signal-detector";
+import { withRetry } from "../../shared/retry";
 
 export class ProbabilityFeed {
   private kalshi: KalshiAdapter;
@@ -111,7 +112,10 @@ export class ProbabilityFeed {
     });
 
     const tx = new Transaction().add(ix);
-    const sig = await sendAndConfirmTransaction(this.connection, tx, [this.payer]);
+    const sig = await withRetry(
+      () => sendAndConfirmTransaction(this.connection, tx, [this.payer]),
+      { onRetry: (err, attempt, delay) => console.log(`  retry ${attempt} in ${delay}ms: ${err}`) },
+    );
     console.log(`  tx: ${sig}`);
   }
 }

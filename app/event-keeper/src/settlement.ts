@@ -1,4 +1,5 @@
 import { Connection, Keypair, PublicKey, Transaction, TransactionInstruction, sendAndConfirmTransaction } from "@solana/web3.js";
+import { withRetry } from "../../shared/retry";
 
 /**
  * Handle event resolution and market settlement
@@ -29,7 +30,10 @@ export class EventSettlement {
     });
 
     const tx = new Transaction().add(ix);
-    const sig = await sendAndConfirmTransaction(this.connection, tx, [this.oracleKeypair]);
+    const sig = await withRetry(
+      () => sendAndConfirmTransaction(this.connection, tx, [this.oracleKeypair]),
+      { onRetry: (err, attempt, delay) => console.log(`[SETTLEMENT] retry ${attempt} in ${delay}ms: ${err}`) },
+    );
 
     console.log(`Event resolved: outcome=${outcome === 1 ? "YES" : "NO"} tx=${sig}`);
     return sig;
