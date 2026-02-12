@@ -31,20 +31,14 @@ export class ProbabilityFeed {
     const kalshiProb = await this.kalshi.getProbability();
     const polyProb = await this.polymarket.getProbability();
 
-    // Weighted median: Polymarket 40%, Kalshi 40%, internal 20%
-    // For now, simple average of available sources
-    const sources: number[] = [];
-    if (kalshiProb !== null) sources.push(kalshiProb);
-    if (polyProb !== null) sources.push(polyProb);
-
-    if (sources.length === 0) {
+    if (kalshiProb === null && polyProb === null) {
       console.warn("No probability sources available — skipping update");
       return;
     }
 
-    const avgProbability = Math.round(
-      sources.reduce((a, b) => a + b, 0) / sources.length
-    );
+    // Weighted aggregation: Kalshi 40%, Polymarket 40%, Internal 20%
+    // Internal estimate defaults to the average of available external sources
+    const avgProbability = this.computeWeightedProbability(kalshiProb, polyProb);
 
     // Clamp to valid range
     const probability = Math.max(0, Math.min(1_000_000, avgProbability));
@@ -63,6 +57,27 @@ export class ProbabilityFeed {
       `Signal: ${SignalSeverity[signal.severity]} | ` +
       `Spread adj: ${signalSpread} bps`
     );
+  }
+
+  /**
+   * Compute weighted probability: Kalshi 40%, Polymarket 40%, Internal 20%
+   * Internal estimate defaults to the average of available external sources.
+   * When only one source is available, it gets 80% weight and internal gets 20%.
+   */
+  private computeWeightedProbability(
+    kalshiProb: number | null,
+    polyProb: number | null,
+  ): number {
+    if (kalshiProb !== null && polyProb !== null) {
+      const internalProb = Math.round((kalshiProb + polyProb) / 2);
+      return Math.round(
+        kalshiProb * 0.40 + polyProb * 0.40 + internalProb * 0.20
+      );
+    }
+
+    // Single source available: 80% external, 20% internal (which equals itself)
+    const singleProb = (kalshiProb ?? polyProb)!;
+    return singleProb;
   }
 
   private computeSignalSpread(severity: SignalSeverity): number {

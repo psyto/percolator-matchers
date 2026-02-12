@@ -7,6 +7,7 @@ import {
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
 import { FredDataSource } from "./data-sources";
+import { MacroSignalDetector } from "./macro-signal-detector";
 
 /**
  * Rate offset: +500 bps (+5.00%) to keep mark price positive.
@@ -37,6 +38,7 @@ function packComponents(nominalBps: number, inflationBps: number): bigint {
 
 export class MacroOracleSync {
   private fredSource: FredDataSource;
+  private signalDetector: MacroSignalDetector;
 
   constructor(
     private connection: Connection,
@@ -47,6 +49,7 @@ export class MacroOracleSync {
     fredApiKey: string,
   ) {
     this.fredSource = new FredDataSource(fredApiKey);
+    this.signalDetector = new MacroSignalDetector();
   }
 
   /**
@@ -60,10 +63,10 @@ export class MacroOracleSync {
     const markPrice = computeMarkPrice(realRateBps);
     const componentsPacked = packComponents(nominalBps, inflationBps);
 
-    // Signal intelligence: default to none (0).
-    // In production, this would be derived from additional macro signals.
-    const signalSeverity = 0;
-    const signalAdjustedSpread = 0;
+    // Signal intelligence: detect macro anomalies from rate data
+    const signal = this.signalDetector.detect(nominalBps, inflationBps, realRateBps);
+    const signalSeverity = signal.severity;
+    const signalAdjustedSpread = this.signalDetector.computeSpread(signal.severity);
 
     await this.writeSyncInstruction(
       markPrice,
@@ -72,9 +75,12 @@ export class MacroOracleSync {
       signalAdjustedSpread,
     );
 
+    const severityNames = ["NONE", "LOW", "HIGH", "CRITICAL"];
     console.log(
       `Synced: real=${realRateBps}bps mark=${markPrice} ` +
-      `nom=${nominalBps} inf=${inflationBps}`
+      `nom=${nominalBps} inf=${inflationBps} | ` +
+      `Signal: ${severityNames[signalSeverity]} spread_adj=${signalAdjustedSpread}bps` +
+      (signal.type !== "NONE" ? ` (${signal.type}: ${signal.description})` : "")
     );
   }
 
