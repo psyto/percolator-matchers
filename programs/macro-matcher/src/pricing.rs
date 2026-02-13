@@ -86,13 +86,17 @@ pub fn process_init(
     // Zero reserved
     ctx_data[264..CTX_SIZE].fill(0);
 
+    let base_spread_val = u32::from_le_bytes(data[2..6].try_into().map_err(|_| ProgramError::InvalidInstructionData)?);
+    let regime_spread_val = u32::from_le_bytes(data[6..10].try_into().map_err(|_| ProgramError::InvalidInstructionData)?);
+    let max_spread_val = u32::from_le_bytes(data[10..14].try_into().map_err(|_| ProgramError::InvalidInstructionData)?);
+
     msg!(
         "INIT: lp_pda={} mode={} base_spread={} regime_spread={} max_spread={}",
         lp_pda.key,
         data[1],
-        u32::from_le_bytes(data[2..6].try_into().unwrap()),
-        u32::from_le_bytes(data[6..10].try_into().unwrap()),
-        u32::from_le_bytes(data[10..14].try_into().unwrap()),
+        base_spread_val,
+        regime_spread_val,
+        max_spread_val,
     );
 
     Ok(())
@@ -122,28 +126,28 @@ pub fn process_match(
     let base_spread = u32::from_le_bytes(
         ctx_data[BASE_SPREAD_OFFSET..BASE_SPREAD_OFFSET + 4]
             .try_into()
-            .unwrap(),
+            .map_err(|_| ProgramError::InvalidAccountData)?,
     );
     let regime_spread = u32::from_le_bytes(
         ctx_data[REGIME_SPREAD_OFFSET..REGIME_SPREAD_OFFSET + 4]
             .try_into()
-            .unwrap(),
+            .map_err(|_| ProgramError::InvalidAccountData)?,
     );
     let max_spread = u32::from_le_bytes(
         ctx_data[MAX_SPREAD_OFFSET..MAX_SPREAD_OFFSET + 4]
             .try_into()
-            .unwrap(),
+            .map_err(|_| ProgramError::InvalidAccountData)?,
     );
     let mark_price = u64::from_le_bytes(
         ctx_data[CURRENT_INDEX_OFFSET..CURRENT_INDEX_OFFSET + 8]
             .try_into()
-            .unwrap(),
+            .map_err(|_| ProgramError::InvalidAccountData)?,
     );
     let regime = MacroRegime::from_u8(ctx_data[REGIME_OFFSET]);
     let signal_adj = u64::from_le_bytes(
         ctx_data[SIGNAL_ADJUSTED_SPREAD_OFFSET..SIGNAL_ADJUSTED_SPREAD_OFFSET + 8]
             .try_into()
-            .unwrap(),
+            .map_err(|_| ProgramError::InvalidAccountData)?,
     );
 
     // Reject if index not synced (mark == 0)
@@ -156,7 +160,7 @@ pub fn process_match(
     let last_update = u64::from_le_bytes(
         ctx_data[LAST_UPDATE_SLOT_OFFSET..LAST_UPDATE_SLOT_OFFSET + 8]
             .try_into()
-            .unwrap(),
+            .map_err(|_| ProgramError::InvalidAccountData)?,
     );
     let clock = Clock::get()?;
     if clock.slot.saturating_sub(last_update) > MAX_STALENESS_SLOTS {
@@ -195,7 +199,7 @@ pub fn process_match(
     let old_trades = u64::from_le_bytes(
         ctx_data[TOTAL_TRADES_OFFSET..TOTAL_TRADES_OFFSET + 8]
             .try_into()
-            .unwrap(),
+            .map_err(|_| ProgramError::InvalidAccountData)?,
     );
     ctx_data[TOTAL_TRADES_OFFSET..TOTAL_TRADES_OFFSET + 8]
         .copy_from_slice(&(old_trades.saturating_add(1)).to_le_bytes());
@@ -247,17 +251,17 @@ pub fn process_index_sync(
             return Err(ProgramError::UninitializedAccount);
         }
 
-        let stored_oracle = read_macro_oracle(&ctx_data);
+        let stored_oracle = read_macro_oracle(&ctx_data)?;
         if *oracle.key != stored_oracle {
             msg!("MACRO-MATCHER: Oracle mismatch");
             return Err(MacroMatcherError::OracleMismatch.into());
         }
     }
 
-    let new_index = u64::from_le_bytes(data[1..9].try_into().unwrap());
-    let components_packed = u64::from_le_bytes(data[9..17].try_into().unwrap());
-    let signal_severity = u64::from_le_bytes(data[17..25].try_into().unwrap());
-    let signal_spread = u64::from_le_bytes(data[25..33].try_into().unwrap());
+    let new_index = u64::from_le_bytes(data[1..9].try_into().map_err(|_| ProgramError::InvalidInstructionData)?);
+    let components_packed = u64::from_le_bytes(data[9..17].try_into().map_err(|_| ProgramError::InvalidInstructionData)?);
+    let signal_severity = u64::from_le_bytes(data[17..25].try_into().map_err(|_| ProgramError::InvalidInstructionData)?);
+    let signal_spread = u64::from_le_bytes(data[25..33].try_into().map_err(|_| ProgramError::InvalidInstructionData)?);
 
     // Validate signal severity
     if signal_severity > SIGNAL_CRITICAL {
@@ -270,7 +274,7 @@ pub fn process_index_sync(
     let old_index = u64::from_le_bytes(
         ctx_data[CURRENT_INDEX_OFFSET..CURRENT_INDEX_OFFSET + 8]
             .try_into()
-            .unwrap(),
+            .map_err(|_| ProgramError::InvalidAccountData)?,
     );
 
     ctx_data[CURRENT_INDEX_OFFSET..CURRENT_INDEX_OFFSET + 8]
@@ -333,7 +337,7 @@ pub fn process_regime_update(
             return Err(ProgramError::UninitializedAccount);
         }
 
-        let stored_oracle = read_macro_oracle(&ctx_data);
+        let stored_oracle = read_macro_oracle(&ctx_data)?;
         if *oracle.key != stored_oracle {
             msg!("MACRO-MATCHER: Oracle mismatch");
             return Err(MacroMatcherError::OracleMismatch.into());

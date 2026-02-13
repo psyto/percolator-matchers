@@ -31,7 +31,7 @@ pub fn process_match_with_compliance(
     let min_kyc = ctx_data[MIN_KYC_LEVEL_OFFSET];
     let blocked_jurisdictions = ctx_data[BLOCKED_JURISDICTIONS_OFFSET];
     let oracle_price = u64::from_le_bytes(
-        ctx_data[ORACLE_PRICE_OFFSET..ORACLE_PRICE_OFFSET + 8].try_into().unwrap(),
+        ctx_data[ORACLE_PRICE_OFFSET..ORACLE_PRICE_OFFSET + 8].try_into().map_err(|_| ProgramError::InvalidAccountData)?,
     );
 
     if oracle_price == 0 {
@@ -61,7 +61,7 @@ pub fn process_match_with_compliance(
         let user_expiry = i64::from_le_bytes(
             user_wl_data[WHITELIST_EXPIRY_OFFSET..WHITELIST_EXPIRY_OFFSET + 8]
                 .try_into()
-                .unwrap(),
+                .map_err(|_| ProgramError::InvalidAccountData)?,
         );
         let clock = Clock::get()?;
         if clock.unix_timestamp > user_expiry {
@@ -88,18 +88,18 @@ pub fn process_match_with_compliance(
         let daily_cap = u64::from_le_bytes(
             ctx_data[DAILY_VOLUME_CAP_OFFSET..DAILY_VOLUME_CAP_OFFSET + 8]
                 .try_into()
-                .unwrap(),
+                .map_err(|_| ProgramError::InvalidAccountData)?,
         );
         if daily_cap > 0 {
             let current_volume = u64::from_le_bytes(
                 ctx_data[CURRENT_DAY_VOLUME_OFFSET..CURRENT_DAY_VOLUME_OFFSET + 8]
                     .try_into()
-                    .unwrap(),
+                    .map_err(|_| ProgramError::InvalidAccountData)?,
             );
             let day_reset = i64::from_le_bytes(
                 ctx_data[DAY_RESET_TIMESTAMP_OFFSET..DAY_RESET_TIMESTAMP_OFFSET + 8]
                     .try_into()
-                    .unwrap(),
+                    .map_err(|_| ProgramError::InvalidAccountData)?,
             );
             let clock = Clock::get()?;
 
@@ -151,13 +151,13 @@ pub fn process_match_with_compliance(
 
     // === PRICING ===
     let base_spread = u32::from_le_bytes(
-        ctx_data[BASE_SPREAD_OFFSET..BASE_SPREAD_OFFSET + 4].try_into().unwrap(),
+        ctx_data[BASE_SPREAD_OFFSET..BASE_SPREAD_OFFSET + 4].try_into().map_err(|_| ProgramError::InvalidAccountData)?,
     );
 
     // KYC tier discount (Institutional gets lower fees)
     let discount = if user_kyc_level >= KYC_INSTITUTIONAL {
         u32::from_le_bytes(
-            ctx_data[KYC_DISCOUNT_OFFSET..KYC_DISCOUNT_OFFSET + 4].try_into().unwrap(),
+            ctx_data[KYC_DISCOUNT_OFFSET..KYC_DISCOUNT_OFFSET + 4].try_into().map_err(|_| ProgramError::InvalidAccountData)?,
         )
     } else {
         0
@@ -165,7 +165,7 @@ pub fn process_match_with_compliance(
 
     let effective_spread = base_spread.saturating_sub(discount);
     let max_spread = u32::from_le_bytes(
-        ctx_data[MAX_SPREAD_OFFSET..MAX_SPREAD_OFFSET + 4].try_into().unwrap(),
+        ctx_data[MAX_SPREAD_OFFSET..MAX_SPREAD_OFFSET + 4].try_into().map_err(|_| ProgramError::InvalidAccountData)?,
     );
     let capped_spread = std::cmp::min(effective_spread, max_spread);
 
@@ -183,12 +183,12 @@ pub fn process_match_with_compliance(
         let current_volume = u64::from_le_bytes(
             ctx_data[CURRENT_DAY_VOLUME_OFFSET..CURRENT_DAY_VOLUME_OFFSET + 8]
                 .try_into()
-                .unwrap(),
+                .map_err(|_| ProgramError::InvalidAccountData)?,
         );
         let day_reset = i64::from_le_bytes(
             ctx_data[DAY_RESET_TIMESTAMP_OFFSET..DAY_RESET_TIMESTAMP_OFFSET + 8]
                 .try_into()
-                .unwrap(),
+                .map_err(|_| ProgramError::InvalidAccountData)?,
         );
         let clock = Clock::get()?;
 

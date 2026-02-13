@@ -134,22 +134,22 @@ pub fn process_match(
     let base_spread = u32::from_le_bytes(
         ctx_data[BASE_SPREAD_OFFSET..BASE_SPREAD_OFFSET + 4]
             .try_into()
-            .unwrap(),
+            .map_err(|_| ProgramError::InvalidAccountData)?,
     );
     let max_spread = u32::from_le_bytes(
         ctx_data[MAX_SPREAD_OFFSET..MAX_SPREAD_OFFSET + 4]
             .try_into()
-            .unwrap(),
+            .map_err(|_| ProgramError::InvalidAccountData)?,
     );
     let solver_fee = u32::from_le_bytes(
         ctx_data[SOLVER_FEE_OFFSET..SOLVER_FEE_OFFSET + 4]
             .try_into()
-            .unwrap(),
+            .map_err(|_| ProgramError::InvalidAccountData)?,
     );
     let oracle_price = u64::from_le_bytes(
         ctx_data[ORACLE_PRICE_OFFSET..ORACLE_PRICE_OFFSET + 8]
             .try_into()
-            .unwrap(),
+            .map_err(|_| ProgramError::InvalidAccountData)?,
     );
 
     // Reject if oracle price not set
@@ -182,7 +182,7 @@ pub fn process_match(
     let count = u64::from_le_bytes(
         ctx_data[TOTAL_ORDERS_OFFSET..TOTAL_ORDERS_OFFSET + 8]
             .try_into()
-            .unwrap(),
+            .map_err(|_| ProgramError::InvalidAccountData)?,
     );
     ctx_data[TOTAL_ORDERS_OFFSET..TOTAL_ORDERS_OFFSET + 8]
         .copy_from_slice(&count.saturating_add(1).to_le_bytes());
@@ -197,7 +197,7 @@ pub fn process_match(
         let current_volume = u128::from_le_bytes(
             ctx_data[TOTAL_VOLUME_OFFSET..TOTAL_VOLUME_OFFSET + 16]
                 .try_into()
-                .unwrap(),
+                .map_err(|_| ProgramError::InvalidAccountData)?,
         );
         let new_volume = current_volume.saturating_add(trade_size as u128);
         ctx_data[TOTAL_VOLUME_OFFSET..TOTAL_VOLUME_OFFSET + 16]
@@ -250,7 +250,7 @@ pub fn process_oracle_update(
         }
 
         // Verify caller is the authorized solver
-        let stored_solver = read_solver_pubkey(&ctx_data);
+        let stored_solver = read_solver_pubkey(&ctx_data)?;
         if *solver.key != stored_solver {
             msg!(
                 "PRIVACY-MATCHER: Unauthorized solver: expected {}, got {}",
@@ -278,7 +278,7 @@ pub fn process_oracle_update(
     let old_price = u64::from_le_bytes(
         ctx_data[ORACLE_PRICE_OFFSET..ORACLE_PRICE_OFFSET + 8]
             .try_into()
-            .unwrap(),
+            .map_err(|_| ProgramError::InvalidAccountData)?,
     );
     ctx_data[ORACLE_PRICE_OFFSET..ORACLE_PRICE_OFFSET + 8]
         .copy_from_slice(&new_price.to_le_bytes());
@@ -395,14 +395,14 @@ mod tests {
         data[SOLVER_PUBKEY_OFFSET..SOLVER_PUBKEY_OFFSET + 32]
             .copy_from_slice(&expected_pubkey.to_bytes());
 
-        let read_pubkey = read_solver_pubkey(&data);
+        let read_pubkey = read_solver_pubkey(&data).unwrap();
         assert_eq!(read_pubkey, expected_pubkey);
     }
 
     #[test]
     fn test_read_solver_pubkey_zeroed() {
         let data = vec![0u8; CTX_SIZE];
-        let read_pubkey = read_solver_pubkey(&data);
+        let read_pubkey = read_solver_pubkey(&data).unwrap();
         assert_eq!(read_pubkey, Pubkey::default());
     }
 }

@@ -1,4 +1,4 @@
-use solana_program::pubkey::Pubkey;
+use solana_program::{pubkey::Pubkey, program_error::ProgramError};
 
 pub use matcher_common::{CTX_SIZE, verify_magic as verify_magic_generic};
 #[cfg(test)]
@@ -29,10 +29,10 @@ pub fn verify_magic(ctx_data: &[u8]) -> bool {
 }
 
 /// Read solver pubkey from context data
-pub fn read_solver_pubkey(ctx_data: &[u8]) -> Pubkey {
-    Pubkey::new_from_array(
+pub fn read_solver_pubkey(ctx_data: &[u8]) -> Result<Pubkey, ProgramError> {
+    Ok(Pubkey::new_from_array(
         ctx_data[SOLVER_PUBKEY_OFFSET..SOLVER_PUBKEY_OFFSET + 32]
             .try_into()
-            .unwrap(),
-    )
+            .map_err(|_| ProgramError::InvalidAccountData)?,
+    ))
 }

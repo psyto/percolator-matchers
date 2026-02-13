@@ -41,7 +41,7 @@ pub fn process_init(
 
     verify_init_preconditions(ctx_account, EVENT_MATCHER_MAGIC, "EVENT-MATCHER")?;
 
-    let initial_probability = u64::from_le_bytes(data[18..26].try_into().unwrap());
+    let initial_probability = u64::from_le_bytes(data[18..26].try_into().map_err(|_| ProgramError::InvalidInstructionData)?);
     if initial_probability > MAX_PROBABILITY {
         msg!("EVENT-MATCHER: Initial probability {} exceeds max {}", initial_probability, MAX_PROBABILITY);
         return Err(EventMatcherError::InvalidProbability.into());
@@ -95,7 +95,7 @@ pub fn process_init(
         lp_pda.key,
         data[1],
         initial_probability,
-        i64::from_le_bytes(data[26..34].try_into().unwrap()),
+        i64::from_le_bytes(data[26..34].try_into().map_err(|_| ProgramError::InvalidInstructionData)?),
     );
 
     Ok(())
@@ -129,21 +129,21 @@ pub fn process_match(
     }
 
     let base_spread = u32::from_le_bytes(
-        ctx_data[BASE_SPREAD_OFFSET..BASE_SPREAD_OFFSET + 4].try_into().unwrap(),
+        ctx_data[BASE_SPREAD_OFFSET..BASE_SPREAD_OFFSET + 4].try_into().map_err(|_| ProgramError::InvalidAccountData)?,
     );
     let edge_spread = u32::from_le_bytes(
-        ctx_data[EDGE_SPREAD_OFFSET..EDGE_SPREAD_OFFSET + 4].try_into().unwrap(),
+        ctx_data[EDGE_SPREAD_OFFSET..EDGE_SPREAD_OFFSET + 4].try_into().map_err(|_| ProgramError::InvalidAccountData)?,
     );
     let max_spread = u32::from_le_bytes(
-        ctx_data[MAX_SPREAD_OFFSET..MAX_SPREAD_OFFSET + 4].try_into().unwrap(),
+        ctx_data[MAX_SPREAD_OFFSET..MAX_SPREAD_OFFSET + 4].try_into().map_err(|_| ProgramError::InvalidAccountData)?,
     );
     let probability_e6 = u64::from_le_bytes(
-        ctx_data[CURRENT_PROBABILITY_OFFSET..CURRENT_PROBABILITY_OFFSET + 8].try_into().unwrap(),
+        ctx_data[CURRENT_PROBABILITY_OFFSET..CURRENT_PROBABILITY_OFFSET + 8].try_into().map_err(|_| ProgramError::InvalidAccountData)?,
     );
     let signal_adj = u64::from_le_bytes(
         ctx_data[SIGNAL_ADJUSTED_SPREAD_OFFSET..SIGNAL_ADJUSTED_SPREAD_OFFSET + 8]
             .try_into()
-            .unwrap(),
+            .map_err(|_| ProgramError::InvalidAccountData)?,
     );
 
     // Reject if probability is 0 (not initialized)
@@ -154,7 +154,7 @@ pub fn process_match(
 
     // Check oracle staleness (reject if > 200 slots old)
     let last_update = u64::from_le_bytes(
-        ctx_data[LAST_UPDATE_SLOT_OFFSET..LAST_UPDATE_SLOT_OFFSET + 8].try_into().unwrap(),
+        ctx_data[LAST_UPDATE_SLOT_OFFSET..LAST_UPDATE_SLOT_OFFSET + 8].try_into().map_err(|_| ProgramError::InvalidAccountData)?,
     );
     let clock = Clock::get()?;
     if clock.slot.saturating_sub(last_update) > 200 {
@@ -261,31 +261,31 @@ pub fn process_probability_sync(
             return Err(EventMatcherError::MarketResolved.into());
         }
 
-        let stored_oracle = read_event_oracle(&ctx_data);
+        let stored_oracle = read_event_oracle(&ctx_data)?;
         if *oracle.key != stored_oracle {
             msg!("EVENT-MATCHER: Oracle mismatch");
             return Err(EventMatcherError::OracleMismatch.into());
         }
     }
 
-    let new_probability = u64::from_le_bytes(data[1..9].try_into().unwrap());
+    let new_probability = u64::from_le_bytes(data[1..9].try_into().map_err(|_| ProgramError::InvalidInstructionData)?);
     if new_probability > MAX_PROBABILITY {
         return Err(EventMatcherError::InvalidProbability.into());
     }
 
-    let signal_severity = u64::from_le_bytes(data[9..17].try_into().unwrap());
+    let signal_severity = u64::from_le_bytes(data[9..17].try_into().map_err(|_| ProgramError::InvalidInstructionData)?);
     if signal_severity > SIGNAL_CRITICAL {
         return Err(EventMatcherError::InvalidSignalSeverity.into());
     }
 
-    let signal_spread = u64::from_le_bytes(data[17..25].try_into().unwrap());
+    let signal_spread = u64::from_le_bytes(data[17..25].try_into().map_err(|_| ProgramError::InvalidInstructionData)?);
     let clock = Clock::get()?;
 
     let mut ctx_data = ctx_account.try_borrow_mut_data()?;
     let old_probability = u64::from_le_bytes(
         ctx_data[CURRENT_PROBABILITY_OFFSET..CURRENT_PROBABILITY_OFFSET + 8]
             .try_into()
-            .unwrap(),
+            .map_err(|_| ProgramError::InvalidAccountData)?,
     );
 
     ctx_data[CURRENT_PROBABILITY_OFFSET..CURRENT_PROBABILITY_OFFSET + 8]
@@ -349,7 +349,7 @@ pub fn process_resolve(
             return Err(EventMatcherError::MarketResolved.into());
         }
 
-        let stored_oracle = read_event_oracle(&ctx_data);
+        let stored_oracle = read_event_oracle(&ctx_data)?;
         if *oracle.key != stored_oracle {
             msg!("EVENT-MATCHER: Oracle mismatch");
             return Err(EventMatcherError::OracleMismatch.into());

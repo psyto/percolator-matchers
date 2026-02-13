@@ -1,4 +1,4 @@
-use solana_program::pubkey::Pubkey;
+use solana_program::{pubkey::Pubkey, program_error::ProgramError};
 
 // Re-export shared constants and functions from matcher-common
 pub use matcher_common::{CTX_SIZE, verify_magic as verify_magic_generic};
@@ -43,6 +43,6 @@ pub fn verify_magic(ctx_data: &[u8]) -> bool {
     verify_magic_generic(ctx_data, EVENT_MATCHER_MAGIC)
 }
 
-pub fn read_event_oracle(ctx_data: &[u8]) -> Pubkey {
-    Pubkey::new_from_array(ctx_data[EVENT_ORACLE_OFFSET..EVENT_ORACLE_OFFSET + 32].try_into().unwrap())
+pub fn read_event_oracle(ctx_data: &[u8]) -> Result<Pubkey, ProgramError> {
+    Ok(Pubkey::new_from_array(ctx_data[EVENT_ORACLE_OFFSET..EVENT_ORACLE_OFFSET + 32].try_into().map_err(|_| ProgramError::InvalidAccountData)?))
 }

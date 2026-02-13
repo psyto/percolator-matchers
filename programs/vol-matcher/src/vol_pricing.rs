@@ -76,9 +76,9 @@ pub fn process_init(
         "INIT: lp_pda={} mode={} base_spread={} vov_spread={} max_spread={}",
         lp_pda.key,
         data[1],
-        u32::from_le_bytes(data[2..6].try_into().unwrap()),
-        u32::from_le_bytes(data[6..10].try_into().unwrap()),
-        u32::from_le_bytes(data[10..14].try_into().unwrap()),
+        u32::from_le_bytes(data[2..6].try_into().map_err(|_| ProgramError::InvalidInstructionData)?),
+        u32::from_le_bytes(data[6..10].try_into().map_err(|_| ProgramError::InvalidInstructionData)?),
+        u32::from_le_bytes(data[10..14].try_into().map_err(|_| ProgramError::InvalidInstructionData)?),
     );
 
     Ok(())
@@ -106,16 +106,16 @@ pub fn process_match(
     // Read pricing parameters
     let ctx_data = ctx_account.try_borrow_data()?;
     let base_spread = u32::from_le_bytes(
-        ctx_data[BASE_SPREAD_OFFSET..BASE_SPREAD_OFFSET + 4].try_into().unwrap(),
+        ctx_data[BASE_SPREAD_OFFSET..BASE_SPREAD_OFFSET + 4].try_into().map_err(|_| ProgramError::InvalidAccountData)?,
     );
     let vov_spread = u32::from_le_bytes(
-        ctx_data[VOV_SPREAD_OFFSET..VOV_SPREAD_OFFSET + 4].try_into().unwrap(),
+        ctx_data[VOV_SPREAD_OFFSET..VOV_SPREAD_OFFSET + 4].try_into().map_err(|_| ProgramError::InvalidAccountData)?,
     );
     let max_spread = u32::from_le_bytes(
-        ctx_data[MAX_SPREAD_OFFSET..MAX_SPREAD_OFFSET + 4].try_into().unwrap(),
+        ctx_data[MAX_SPREAD_OFFSET..MAX_SPREAD_OFFSET + 4].try_into().map_err(|_| ProgramError::InvalidAccountData)?,
     );
     let vol_mark = u64::from_le_bytes(
-        ctx_data[VOL_MARK_PRICE_OFFSET..VOL_MARK_PRICE_OFFSET + 8].try_into().unwrap(),
+        ctx_data[VOL_MARK_PRICE_OFFSET..VOL_MARK_PRICE_OFFSET + 8].try_into().map_err(|_| ProgramError::InvalidAccountData)?,
     );
     let regime = VolatilityRegime::from_u8(ctx_data[REGIME_OFFSET]);
 
@@ -127,7 +127,7 @@ pub fn process_match(
 
     // Check oracle staleness (reject if > 100 slots old)
     let last_update = u64::from_le_bytes(
-        ctx_data[LAST_UPDATE_SLOT_OFFSET..LAST_UPDATE_SLOT_OFFSET + 8].try_into().unwrap(),
+        ctx_data[LAST_UPDATE_SLOT_OFFSET..LAST_UPDATE_SLOT_OFFSET + 8].try_into().map_err(|_| ProgramError::InvalidAccountData)?,
     );
     let clock = Clock::get()?;
     if clock.slot.saturating_sub(last_update) > 100 {
@@ -208,10 +208,10 @@ pub fn process_oracle_sync(
 
         // Verify passed accounts match stored oracle accounts
         let stored_vt = Pubkey::new_from_array(
-            ctx_data[VARIANCE_TRACKER_OFFSET..VARIANCE_TRACKER_OFFSET + 32].try_into().unwrap(),
+            ctx_data[VARIANCE_TRACKER_OFFSET..VARIANCE_TRACKER_OFFSET + 32].try_into().map_err(|_| ProgramError::InvalidAccountData)?,
         );
         let stored_vi = Pubkey::new_from_array(
-            ctx_data[VOL_INDEX_OFFSET..VOL_INDEX_OFFSET + 32].try_into().unwrap(),
+            ctx_data[VOL_INDEX_OFFSET..VOL_INDEX_OFFSET + 32].try_into().map_err(|_| ProgramError::InvalidAccountData)?,
         );
         if *variance_tracker.key != stored_vt {
             msg!("VOL-MATCHER: VarianceTracker mismatch");
@@ -223,11 +223,11 @@ pub fn process_oracle_sync(
         }
     }
 
-    let current_vol = u64::from_le_bytes(data[1..9].try_into().unwrap());
-    let vol_mark = u64::from_le_bytes(data[9..17].try_into().unwrap());
+    let current_vol = u64::from_le_bytes(data[1..9].try_into().map_err(|_| ProgramError::InvalidInstructionData)?);
+    let vol_mark = u64::from_le_bytes(data[9..17].try_into().map_err(|_| ProgramError::InvalidInstructionData)?);
     let regime = data[17];
-    let vol_7d = u64::from_le_bytes(data[18..26].try_into().unwrap());
-    let vol_30d = u64::from_le_bytes(data[26..34].try_into().unwrap());
+    let vol_7d = u64::from_le_bytes(data[18..26].try_into().map_err(|_| ProgramError::InvalidInstructionData)?);
+    let vol_30d = u64::from_le_bytes(data[26..34].try_into().map_err(|_| ProgramError::InvalidInstructionData)?);
 
     // Validate regime
     if regime > 4 {
@@ -238,7 +238,7 @@ pub fn process_oracle_sync(
 
     let mut ctx_data = ctx_account.try_borrow_mut_data()?;
     let old_vol = u64::from_le_bytes(
-        ctx_data[CURRENT_VOL_OFFSET..CURRENT_VOL_OFFSET + 8].try_into().unwrap(),
+        ctx_data[CURRENT_VOL_OFFSET..CURRENT_VOL_OFFSET + 8].try_into().map_err(|_| ProgramError::InvalidAccountData)?,
     );
 
     ctx_data[CURRENT_VOL_OFFSET..CURRENT_VOL_OFFSET + 8].copy_from_slice(&current_vol.to_le_bytes());

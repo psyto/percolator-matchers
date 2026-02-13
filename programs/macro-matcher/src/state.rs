@@ -1,7 +1,7 @@
 // Re-export shared constants and functions from matcher-common
 pub use matcher_common::{CTX_SIZE, verify_magic as verify_magic_generic};
 
-use solana_program::pubkey::Pubkey;
+use solana_program::{pubkey::Pubkey, program_error::ProgramError};
 
 /// Magic bytes: "MACOMATC" as u64 LE
 pub const MACRO_MATCHER_MAGIC: u64 = 0x4d41_434f_4d41_5443;
@@ -93,12 +93,12 @@ pub fn verify_magic(ctx_data: &[u8]) -> bool {
 }
 
 /// Read the macro oracle pubkey from the context account
-pub fn read_macro_oracle(ctx_data: &[u8]) -> Pubkey {
-    Pubkey::new_from_array(
+pub fn read_macro_oracle(ctx_data: &[u8]) -> Result<Pubkey, ProgramError> {
+    Ok(Pubkey::new_from_array(
         ctx_data[MACRO_ORACLE_OFFSET..MACRO_ORACLE_OFFSET + 32]
             .try_into()
-            .unwrap(),
-    )
+            .map_err(|_| ProgramError::InvalidAccountData)?,
+    ))
 }
 
 #[cfg(test)]

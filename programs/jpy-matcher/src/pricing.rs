@@ -88,8 +88,8 @@ pub fn process_init(
     // Zero reserved
     ctx_data[232..CTX_SIZE].fill(0);
 
-    let base_spread = u32::from_le_bytes(data[36..40].try_into().unwrap());
-    let kyc_discount = u32::from_le_bytes(data[40..44].try_into().unwrap());
+    let base_spread = u32::from_le_bytes(data[36..40].try_into().map_err(|_| ProgramError::InvalidInstructionData)?);
+    let kyc_discount = u32::from_le_bytes(data[40..44].try_into().map_err(|_| ProgramError::InvalidInstructionData)?);
 
     msg!(
         "INIT: lp_pda={} mode={} min_kyc={} base_spread={} kyc_discount={} blocked=0x{:02x}",
@@ -150,7 +150,7 @@ pub fn process_oracle_update(
 
     let mut ctx_data = ctx_account.try_borrow_mut_data()?;
     let old_price = u64::from_le_bytes(
-        ctx_data[ORACLE_PRICE_OFFSET..ORACLE_PRICE_OFFSET + 8].try_into().unwrap(),
+        ctx_data[ORACLE_PRICE_OFFSET..ORACLE_PRICE_OFFSET + 8].try_into().map_err(|_| ProgramError::InvalidAccountData)?,
     );
     ctx_data[ORACLE_PRICE_OFFSET..ORACLE_PRICE_OFFSET + 8]
         .copy_from_slice(&new_price.to_le_bytes());
