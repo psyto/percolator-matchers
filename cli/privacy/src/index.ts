@@ -14,7 +14,7 @@ program
   .requiredOption("--base-spread <bps>", "Base spread in bps")
   .requiredOption("--max-spread <bps>", "Maximum spread in bps")
   .option("--solver-fee <bps>", "Solver fee in bps", "10")
-  .option("--rpc <url>", "RPC URL", "https://api.devnet.solana.com")
+  .option("--rpc <url>", "RPC URL", process.env.RPC_URL || "https://api.devnet.solana.com")
   .action(async (opts) => {
     const { initPrivacyLp } = await import("./init-privacy-lp");
     await initPrivacyLp(opts);
@@ -27,7 +27,7 @@ program
   .requiredOption("--max-slippage <bps>", "Max slippage in bps")
   .option("--deadline <timestamp>", "Unix timestamp deadline", "0")
   .option("--solver-pubkey <key>", "Solver encryption public key")
-  .option("--rpc <url>", "RPC URL", "https://api.devnet.solana.com")
+  .option("--rpc <url>", "RPC URL", process.env.RPC_URL || "https://api.devnet.solana.com")
   .action(async (opts) => {
     const { submitIntent } = await import("./submit-intent");
     await submitIntent(opts);
@@ -36,7 +36,7 @@ program
 program
   .command("solver-status")
   .description("Check solver health and stats")
-  .option("--rpc <url>", "RPC URL", "https://api.devnet.solana.com")
+  .option("--rpc <url>", "RPC URL", process.env.RPC_URL || "https://api.devnet.solana.com")
   .option("--context <pubkey>", "Matcher context account")
   .action(async (opts) => {
     const { solverStatus } = await import("./solver-status");

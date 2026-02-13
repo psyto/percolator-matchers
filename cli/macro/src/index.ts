@@ -10,7 +10,7 @@ program
 program
   .command("init-market")
   .description("Initialize a Percolator market for real rate perps (Hyperp mode)")
-  .option("--rpc <url>", "RPC URL", "https://api.devnet.solana.com")
+  .option("--rpc <url>", "RPC URL", process.env.RPC_URL || "https://api.devnet.solana.com")
   .action(async (opts) => {
     const { initMacroMarket } = await import("./init-macro-market");
     await initMacroMarket(opts);
@@ -24,7 +24,7 @@ program
   .requiredOption("--max-spread <bps>", "Maximum spread in bps")
   .requiredOption("--macro-oracle <pubkey>", "Authorized macro oracle pubkey")
   .option("--impact-k <bps>", "Impact multiplier bps", "100")
-  .option("--rpc <url>", "RPC URL", "https://api.devnet.solana.com")
+  .option("--rpc <url>", "RPC URL", process.env.RPC_URL || "https://api.devnet.solana.com")
   .action(async (opts) => {
     const { initMacroLp } = await import("./init-macro-lp");
     await initMacroLp(opts);
@@ -35,7 +35,7 @@ program
   .description("Trade real rate perps — long or short real rates")
   .requiredOption("--side <long|short>", "Trade side (long = rates rise, short = Stevenson's bet)")
   .requiredOption("--size <amount>", "Trade size")
-  .option("--rpc <url>", "RPC URL", "https://api.devnet.solana.com")
+  .option("--rpc <url>", "RPC URL", process.env.RPC_URL || "https://api.devnet.solana.com")
   .action(async (opts) => {
     const { tradeMacro } = await import("./trade-macro");
     await tradeMacro(opts);
@@ -45,7 +45,7 @@ program
   .command("status")
   .description("Show current macro regime, real rate index, and positions")
   .option("--context <pubkey>", "Matcher context account")
-  .option("--rpc <url>", "RPC URL", "https://api.devnet.solana.com")
+  .option("--rpc <url>", "RPC URL", process.env.RPC_URL || "https://api.devnet.solana.com")
   .action(async (opts) => {
     const { macroStatus } = await import("./macro-status");
     await macroStatus(opts);

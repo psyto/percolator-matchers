@@ -12,7 +12,7 @@ export interface SolverConfig {
 }
 
 export const DEFAULT_CONFIG: Partial<SolverConfig> = {
-  rpcUrl: "https://api.devnet.solana.com",
+  rpcUrl: process.env.RPC_URL || "https://api.devnet.solana.com",
   pollIntervalMs: 1000,
   maxSlippageBps: 500,
 };

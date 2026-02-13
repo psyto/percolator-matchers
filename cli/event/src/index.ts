@@ -13,7 +13,7 @@ program
   .requiredOption("--event-name <name>", "Event description")
   .option("--initial-probability <pct>", "Initial probability 0-100", "50")
   .option("--resolution-date <date>", "Resolution date (ISO format)")
-  .option("--rpc <url>", "RPC URL", "https://api.devnet.solana.com")
+  .option("--rpc <url>", "RPC URL", process.env.RPC_URL || "https://api.devnet.solana.com")
   .action(async (opts) => {
     const { createEventMarket } = await import("./create-event-market");
     await createEventMarket(opts);
@@ -27,7 +27,7 @@ program
   .requiredOption("--max-spread <bps>", "Maximum spread in bps")
   .requiredOption("--event-oracle <pubkey>", "Event oracle authority")
   .option("--initial-probability <e6>", "Initial probability (0-1000000)", "500000")
-  .option("--rpc <url>", "RPC URL", "https://api.devnet.solana.com")
+  .option("--rpc <url>", "RPC URL", process.env.RPC_URL || "https://api.devnet.solana.com")
   .action(async (opts) => {
     const { initEventLp } = await import("./init-event-lp");
     await initEventLp(opts);
@@ -38,7 +38,7 @@ program
   .description("Trade event perps — long/short probability")
   .requiredOption("--direction <long|short>", "Long = bet probability increases, Short = decreases")
   .requiredOption("--size <amount>", "Trade size")
-  .option("--rpc <url>", "RPC URL", "https://api.devnet.solana.com")
+  .option("--rpc <url>", "RPC URL", process.env.RPC_URL || "https://api.devnet.solana.com")
   .action(async (opts) => {
     const { tradeEvent } = await import("./trade-event");
     await tradeEvent(opts);
@@ -49,7 +49,7 @@ program
   .description("Resolve an event market")
   .requiredOption("--outcome <yes|no>", "Event outcome")
   .requiredOption("--context <pubkey>", "Matcher context account")
-  .option("--rpc <url>", "RPC URL", "https://api.devnet.solana.com")
+  .option("--rpc <url>", "RPC URL", process.env.RPC_URL || "https://api.devnet.solana.com")
   .action(async (opts) => {
     const { resolveEvent } = await import("./resolve-event");
     await resolveEvent(opts);
@@ -58,7 +58,7 @@ program
 program
   .command("list")
   .description("List active event markets")
-  .option("--rpc <url>", "RPC URL", "https://api.devnet.solana.com")
+  .option("--rpc <url>", "RPC URL", process.env.RPC_URL || "https://api.devnet.solana.com")
   .action(async (opts) => {
     const { listEvents } = await import("./list-events");
     await listEvents(opts);
