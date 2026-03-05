@@ -12,7 +12,7 @@ Custom matching programs for the [Percolator](https://github.com/nicholasgasior/
 | [event-matcher](docs/event-matcher.md) | Event probability perps with edge spread and [Kalshify](https://github.com/nicholasgasior/kalshify)-style signal detection | Edge factor up to 10x near 0%/100% | `EVNTMATC` |
 | [macro-matcher](programs/macro-matcher/) | Real rate perps with macroeconomic regime-aware pricing (Expansion/Stagnation/Crisis/Recovery) | Regime multipliers 0.6x--2.0x | `MACOMATC` |
 
-All programs share a 320-byte context account layout and use [matcher-common](https://github.com/psyto/matcher-sdk) (extracted to the `matcher-sdk` sibling repo) for CPI contract utilities.
+All programs share a 320-byte context account layout and use [matcher-common](https://github.com/psyto/percolator-matcher-sdk) (extracted to the `percolator-matcher-sdk` sibling repo) for CPI contract utilities.
 
 ## Repository Structure
 
@@ -43,11 +43,11 @@ percolator-matchers/
 
 ## Prerequisites
 
-This project depends on [`matcher-sdk`](https://github.com/psyto/matcher-sdk), which must be cloned as a sibling directory:
+This project depends on [`percolator-matcher-sdk`](https://github.com/psyto/percolator-matcher-sdk), which must be cloned as a sibling directory:
 
 ```bash
 # Clone both repos side by side
-git clone https://github.com/psyto/matcher-sdk.git
+git clone https://github.com/psyto/percolator-matcher-sdk.git
 git clone https://github.com/psyto/percolator-matchers.git
 ```
 
@@ -57,7 +57,7 @@ git clone https://github.com/psyto/percolator-matchers.git
 # Install TypeScript dependencies
 npm install
 
-# Rust tests (51 tests across 5 program crates + 15 in matcher-sdk)
+# Rust tests (51 tests across 5 program crates + 15 in percolator-matcher-sdk)
 cargo test --workspace
 
 # Build SBF programs
