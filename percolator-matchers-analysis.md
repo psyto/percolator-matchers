@@ -319,8 +319,8 @@ The solver fee compensates the solver for its decryption and pricing service. Th
 
 ### Cross-Pollination
 
-- **Veil** (`/veil/packages/crypto/src/nacl-box.ts`): NaCl box encryption for solver
-- **Veil** (`/veil/apps/confidential-swap-router/solver/`): Solver polling pattern
+- **Veil** (`/veil-solana/packages/crypto/src/nacl-box.ts`): NaCl box encryption for solver
+- **Veil** (`/veil-solana/apps/confidential-swap-router/solver/`): Solver polling pattern
 - **Percolator** demo matcher: Base matcher structure
 
 ---
